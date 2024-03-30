@@ -26,7 +26,7 @@ git lfs pull 2023*.jsonl
 
 ### 运行代码
 ```python
-bash scripts/pretrain
+bash scripts/pretrain.sh
 ```
 
 ## 🎓 参考
