@@ -21,3 +21,5 @@ class CustomizedArguments:
         default="sft", metadata={"help": "预训练任务：[sft, pretrain]"}
     )
     tokenize_num_workers: int = field(default=1, metadata={"help": ""})
+    
+    flash_attn: bool = field(default=True)

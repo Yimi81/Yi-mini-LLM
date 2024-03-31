@@ -1,5 +1,5 @@
 {
-    "output_dir": "output/yi-0.5b-pretrain",
+    "output_dir": "output/yi-1.1b-pretrain",
     "model_name_or_path": "./model",
     "train_file": "./data/pretrain",
     "deepspeed": "./scripts/ds_config_zero2.json",
@@ -23,7 +23,6 @@
     "seed": 42,
     "fp16": true,
     "report_to": "wandb",
-    "dataloader_num_workers": 0,
     "save_strategy": "steps",
     "weight_decay": 0,
     "max_grad_norm": 1.0,

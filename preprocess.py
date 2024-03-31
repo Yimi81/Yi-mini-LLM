@@ -1,6 +1,6 @@
 from itertools import chain
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Tuple
+from typing import Any, Callable, Dict, List
 
 from transformers.tokenization_utils import PreTrainedTokenizer
 from argument import CustomizedArguments

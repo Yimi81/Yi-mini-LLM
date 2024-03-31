@@ -15,11 +15,14 @@ from model.modeling_llama import LlamaForCausalLM
 import datasets
 from datasets import load_dataset, concatenate_datasets
 from tqdm import tqdm
-from itertools import chain
-from functools import partial
 from preprocess import get_preprocess_and_print_func
 from argument import CustomizedArguments
 
+attn_implementation = 'flash_attention_2'
+try:
+    from flash_attn import flash_attn_func
+except Exception as e:
+    attn_implementation = 'eager'
 
 def setup_everything():
     parser = ArgumentParser()
@@ -148,7 +151,7 @@ def load_pretrain_dataset(args, training_args, tokenizer):
 
     logger.info(f"Total training number: {len(pretrain_dataset)}")
     logger.info(
-        f"Total training tokens: {len(pretrain_dataset) * args.max_seq_length // (1024 * 1024)} M Tokens"
+        f"Total training tokens: {len(pretrain_dataset) * args.max_seq_length // 1e9} B Tokens"
     )
 
     return pretrain_dataset
@@ -164,7 +167,10 @@ def init_components(args, training_args):
     training_args.ddp_find_unused_parameters = False if ddp else None
 
     # 初始化模型
-    config = LlamaConfig.from_pretrained("./model")
+    kwargs = {}
+    if args.flash_attn:
+        kwargs = dict(attn_implementation="flash_attention_2")
+    config = LlamaConfig.from_pretrained("./model", **kwargs)
     model = LlamaForCausalLM(config)
 
     # 加载tokenzier
