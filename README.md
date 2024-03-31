@@ -13,6 +13,8 @@ cd Yi-mini-LLM
 conda create -n mini-llm python=3.10 -y
 conda activate mini-llm
 pip install -r requirements.txt
+pip install deepspeed
+pip install flash-attn --no-build-isolation
 ```
 
 ### 数据集下载
