@@ -23,7 +23,8 @@ pip install flash-attn --no-build-isolation
 mkdir data; cd data; mkdir skypile; cd skypile
 git lfs install
 GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/datasets/Skywork/SkyPile-150B
-git lfs pull 2023*.jsonl
+cd SkyPile-150B/data
+git lfs pull --include "2023*.jsonl"
 ```
 
 ### 运行代码
