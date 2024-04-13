@@ -1,4 +1,5 @@
 import os
+import json
 from argparse import ArgumentParser
 from loguru import logger
 from transformers import (
@@ -18,18 +19,13 @@ from tqdm import tqdm
 from preprocess import get_preprocess_and_print_func
 from argument import CustomizedArguments
 
-attn_implementation = 'flash_attention_2'
-try:
-    from flash_attn import flash_attn_func
-except Exception as e:
-    attn_implementation = 'eager'
 
 def setup_everything():
     parser = ArgumentParser()
     parser.add_argument(
         "--train_args_file", type=str, default="hparams/train_args.json"
     )
-    parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument("--local_rank", type=int, help="")
     args = parser.parse_args()
     # 读取训练的参数配置
     parser = HfArgumentParser((CustomizedArguments, TrainingArguments))
@@ -40,8 +36,15 @@ def setup_everything():
         os.makedirs(training_args.output_dir)
     logger.add(os.path.join(training_args.output_dir, "train.log"))
     logger.info("train_args:{}".format(training_args))
+    # 加载训练配置文件
+    with open(args.train_args_file, "r") as f:
+        train_args = json.load(f)
+    # 保存训练参数到输出目录
+    with open(os.path.join(training_args.output_dir, "train_args.json"), "w") as f:
+        json.dump(train_args, f, indent=4)
     # 设置随机种子
     set_seed(training_args.seed)
+
     return args, training_args
 
 
@@ -92,6 +95,7 @@ def load_pretrain_dataset(args, training_args, tokenizer):
                 )
 
                 preprocess_func = None
+                file = file.lower() 
                 # 根据数据源获取不同预处理方法
                 if "wikipedia" in file:
                     preprocess_func = get_preprocess_and_print_func(
@@ -104,6 +108,12 @@ def load_pretrain_dataset(args, training_args, tokenizer):
                         tokenizer,
                         data_args=args,
                         data_source="skypile",
+                    )
+                elif "map-cc" in file:
+                    preprocess_func = get_preprocess_and_print_func(
+                        tokenizer,
+                        data_args=args,
+                        data_source="map-cc",
                     )
 
                 dataset = load_dataset(
@@ -215,6 +225,7 @@ def main():
     trainer.log_metrics("train", metrics)
     trainer.save_metrics("train", metrics)
     trainer.save_state()
+
 
 if __name__ == "__main__":
     main()

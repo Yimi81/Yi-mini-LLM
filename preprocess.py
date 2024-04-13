@@ -15,7 +15,7 @@ def preprocess_pretrain_dataset(
     # build grouped texts with format `X1 X2 X3 ...` if packing is enabled
     if data_source == "wikipedia": 
         text_examples = [messages + tokenizer.eos_token for messages in examples["completion"]]
-    elif data_source == "skypile": 
+    elif data_source == "skypile" or data_source == "map-cc": 
         text_examples = [messages + tokenizer.eos_token for messages in examples["text"]]
 
     tokenized_examples = tokenizer(text_examples, add_special_tokens=False)

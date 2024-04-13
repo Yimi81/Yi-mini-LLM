@@ -1,11 +1,11 @@
 {
-    "output_dir": "output/yi-1.1b-pretrain",
+    "output_dir": "output/yi-1.1b-pretrain-ZW",
     "model_name_or_path": "./model",
     "train_file": "./data/pretrain",
     "deepspeed": "./scripts/ds_config_zero2.json",
     "num_train_epochs": 1,
     "tokenize_num_workers": 10,
-    "per_device_train_batch_size": 4,
+    "per_device_train_batch_size": 2,
     "gradient_accumulation_steps": 8,
     "learning_rate": 5e-4,
     "max_seq_length": 4096,
