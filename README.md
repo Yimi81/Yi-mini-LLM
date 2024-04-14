@@ -32,6 +32,11 @@ git lfs pull --include "2023*.jsonl"
 bash scripts/pretrain.sh
 ```
 
+### 推理
+```python
+python inference.py --model "your-pretrain-model-path"
+```
+
 ## 🎓 参考
 1. https://github.com/DLLXW/baby-llama2-chinese
 
