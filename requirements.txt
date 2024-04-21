@@ -5,3 +5,4 @@ datasets
 accelerate
 sentencepiece
 wandb
+peft

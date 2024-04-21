@@ -40,10 +40,10 @@ python inference.py --model "your-pretrain-model-path"
 ## 🎓 参考
 1. https://github.com/DLLXW/baby-llama2-chinese
 
-2. https://github.com/yangjianxin1/Firefly
+2. https://github.com/jiahe7ay/MINI_LLM
 
-3. https://github.com/jiahe7ay/MINI_LLM
+3. https://github.com/yangjianxin1/Firefly
 
-
+4. https://github.com/hiyouga/LLaMA-Factory
 
 

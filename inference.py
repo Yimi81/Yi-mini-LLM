@@ -25,7 +25,7 @@ def parse_inputs():
     parser.add_argument(
         "--prompt",
         type=str,
-        default="让我给你讲个笑话,",
+        default="床前明月光，疑是地上霜。举头望明月，",
         help="The prompt to start with",
     )
     args = parser.parse_args()
@@ -36,7 +36,7 @@ def main(args):
     print(args)
 
     model = AutoModelForCausalLM.from_pretrained(
-        args.model, device_map="auto", torch_dtype="auto"
+        args.model, torch_dtype="auto"
     )
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
     inputs = tokenizer(
