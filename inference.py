@@ -25,7 +25,7 @@ def parse_inputs():
     parser.add_argument(
         "--prompt",
         type=str,
-        default="床前明月光，疑是地上霜。举头望明月，",
+        default="《小王子》是一本畅销童话书，它讲述了：",
         help="The prompt to start with",
     )
     args = parser.parse_args()
@@ -37,7 +37,7 @@ def main(args):
 
     model = AutoModelForCausalLM.from_pretrained(
         args.model, torch_dtype="auto"
-    )
+    ).cuda()
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
     inputs = tokenizer(
         args.prompt,

@@ -1,10 +1,15 @@
 import json
 import re
+import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Sequence, Set, Tuple, Union
 from enum import Enum, unique
 from loguru import logger
+from transformers import TrainingArguments
+from argument import CustomizedArguments
+from datasets import Dataset, IterableDataset, concatenate_datasets, interleave_datasets
+
 
 @unique
 class Role(str, Enum):
@@ -13,23 +18,67 @@ class Role(str, Enum):
     SYSTEM = "system"
     FUNCTION = "function"
     OBSERVATION = "observation"
-    
 
-def infer_max_len(source_len: int, target_len: int, max_len: int, reserved_label_len: int) -> Tuple[int, int]:
+
+def infer_max_len(
+    source_len: int, target_len: int, max_len: int, reserved_label_len: int
+) -> Tuple[int, int]:
     max_target_len = int(max_len * (target_len / (source_len + target_len)))
     max_target_len = max(max_target_len, reserved_label_len)
     max_source_len = max_len - min(max_target_len, target_len)
     return max_source_len, max_target_len
 
 
+def merge_dataset(
+    all_datasets: List[Union["Dataset", "IterableDataset"]],
+    data_args: "CustomizedArguments",
+    training_args: "TrainingArguments",
+) -> Union["Dataset", "IterableDataset"]:
+    if len(all_datasets) == 1:
+        return all_datasets[0]
+    elif data_args.mix_strategy == "concat":
+        return concatenate_datasets(all_datasets)
+    elif data_args.mix_strategy.startswith("interleave"):
+        return interleave_datasets(
+            datasets=all_datasets,
+            probabilities=data_args.interleave_probs,
+            seed=training_args.seed,
+            stopping_strategy=(
+                "first_exhausted"
+                if data_args.mix_strategy.endswith("under")
+                else "all_exhausted"
+            ),
+        )
+    else:
+        raise ValueError("Unknown mixing strategy.")
 
-#region Formatter相关
+
+def checksum(data_files: List[str], file_sha1: Optional[str] = None) -> None:
+    if file_sha1 is None:
+        logger.warning(
+            "Checksum failed: missing SHA-1 hash value in dataset_info.json."
+        )
+        return
+
+    if len(data_files) != 1:
+        logger.warning("Checksum failed: too many files.")
+        return
+
+    with open(data_files[0], "rb") as f:
+        sha1 = hashlib.sha1(f.read()).hexdigest()
+        if sha1 != file_sha1:
+            logger.warning(
+                "Checksum failed: mismatched SHA-1 hash value at {}.".format(
+                    data_files[0]
+                )
+            )
+
+
+# region Formatter相关
 SLOTS = Sequence[Union[str, Set[str], Dict[str, str]]]
 
 
-JSON_FORMAT_PROMPT = (
-    """, in a JSON format representing the kwargs (e.g. ```{"input": "hello world", "num_beams": 5}```)"""
-)
+JSON_FORMAT_PROMPT = """, in a JSON format representing the kwargs (e.g. ```{"input": "hello world", "num_beams": 5}```)"""
 
 
 TOOL_SYSTEM_PROMPT = (
@@ -48,10 +97,18 @@ def default_tool_formatter(tools: List[Dict[str, Any]]) -> str:
     for tool in tools:
         param_text = ""
         for name, param in tool["parameters"]["properties"].items():
-            required = ", required" if name in tool["parameters"].get("required", []) else ""
-            enum = ", should be one of [{}]".format(", ".join(param["enum"])) if param.get("enum", None) else ""
+            required = (
+                ", required" if name in tool["parameters"].get("required", []) else ""
+            )
+            enum = (
+                ", should be one of [{}]".format(", ".join(param["enum"]))
+                if param.get("enum", None)
+                else ""
+            )
             items = (
-                ", where each item should be {}".format(param["items"].get("type", "")) if param.get("items") else ""
+                ", where each item should be {}".format(param["items"].get("type", ""))
+                if param.get("items")
+                else ""
             )
             param_text += "  - {name} ({type}{required}): {desc}{enum}{items}\n".format(
                 name=name,
@@ -68,7 +125,9 @@ def default_tool_formatter(tools: List[Dict[str, Any]]) -> str:
         tool_names.append(tool["name"])
 
     return TOOL_SYSTEM_PROMPT.format(
-        tool_text=tool_text, tool_names=", ".join(tool_names), format_prompt=JSON_FORMAT_PROMPT
+        tool_text=tool_text,
+        tool_names=", ".join(tool_names),
+        format_prompt=JSON_FORMAT_PROMPT,
     )
 
 
@@ -139,7 +198,11 @@ class StringFormatter(Formatter):
             elif isinstance(slot, (dict, set)):
                 elements.append(slot)
             else:
-                raise RuntimeError("Input must be string, set[str] or dict[str, str], got {}".format(type(slot)))
+                raise RuntimeError(
+                    "Input must be string, set[str] or dict[str, str], got {}".format(
+                        type(slot)
+                    )
+                )
 
         return elements
 
@@ -155,7 +218,9 @@ class FunctionFormatter(Formatter):
                 has_args = True
 
         if not has_name or not has_args:
-            raise ValueError("Name and arguments placeholders are required in the function formatter.")
+            raise ValueError(
+                "Name and arguments placeholders are required in the function formatter."
+            )
 
     def apply(self, **kwargs) -> SLOTS:
         content = kwargs.pop("content")
@@ -169,12 +234,18 @@ class FunctionFormatter(Formatter):
         elements = []
         for slot in self.slots:
             if isinstance(slot, str):
-                slot = slot.replace("{{name}}", name).replace("{{arguments}}", arguments)
+                slot = slot.replace("{{name}}", name).replace(
+                    "{{arguments}}", arguments
+                )
                 elements.append(slot)
             elif isinstance(slot, (dict, set)):
                 elements.append(slot)
             else:
-                raise RuntimeError("Input must be string, set[str] or dict[str, str], got {}".format(type(slot)))
+                raise RuntimeError(
+                    "Input must be string, set[str] or dict[str, str], got {}".format(
+                        type(slot)
+                    )
+                )
 
         return elements
 
@@ -204,4 +275,6 @@ class ToolFormatter(Formatter):
             return default_tool_extractor(content)
         else:
             raise NotImplementedError
-#endregion
+
+
+# endregion
