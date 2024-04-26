@@ -1,5 +1,6 @@
 import json
 import re
+import os
 import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -72,6 +73,13 @@ def checksum(data_files: List[str], file_sha1: Optional[str] = None) -> None:
                     data_files[0]
                 )
             )
+
+
+def has_tokenized_data(path: os.PathLike) -> bool:
+    r"""
+    Checks if the path has a tokenized dataset.
+    """
+    return os.path.isdir(path) and len(os.listdir(path)) > 0
 
 
 # region Formatter相关

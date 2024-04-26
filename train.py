@@ -154,6 +154,7 @@ def init_components(args, training_args):
     # 加载tokenzier
     tokenizer = LlamaTokenizer.from_pretrained(
         args.model_name_or_path,
+        padding_side="right",
         use_fast=False,
     )
     logger.info(f"vocab_size of tokenizer: {tokenizer.vocab_size}")

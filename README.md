@@ -18,6 +18,8 @@ pip install flash-attn --no-build-isolation
 ```
 
 ### 数据集下载
+
+#### 预训练数据集
 ```python
 # 以天工开源的预训练数据集为例，太大了所以下载一部分
 mkdir data; cd data; mkdir skypile; cd skypile
@@ -27,9 +29,14 @@ cd SkyPile-150B/data
 git lfs pull --include "2023*.jsonl"
 ```
 
-### 运行代码
+### 预训练
 ```python
 bash scripts/pretrain.sh
+```
+
+### SFT (Readme待完善)
+```python
+bash scripts/sft.sh
 ```
 
 ### 推理

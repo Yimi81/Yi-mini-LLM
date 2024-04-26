@@ -12,7 +12,7 @@ from argument import CustomizedArguments
 from template import Template, get_template_and_fix_tokenizer
 from datasets import load_dataset, load_from_disk, Dataset, IterableDataset, Features
 from loguru import logger
-from utils import checksum, Role, merge_dataset
+from utils import checksum, Role, merge_dataset, has_tokenized_data
 
 
 DATA_CONFIG = "dataset_info.json"
@@ -87,13 +87,20 @@ def preprocess_supervised_dataset(
                 data_args.max_seq_length,
             )
         ):
-            source_mask = [IGNORE_INDEX] * len(source_ids)
+            if turn_idx != 0 and template.efficient_eos:
+                source_mask = [tokenizer.eos_token_id] + [IGNORE_INDEX] * (len(source_ids) - 1)
+            else:
+                source_mask = [IGNORE_INDEX] * len(source_ids)
 
             # source_ids即用户输入部分，target_ids即模型真实输出
             # 将用户输入的部分（问题）替换成了-100，保留了模型输入部分。在模型进行运算时，会根据input_ids的前面的tokens去预测下一个token
             input_ids += source_ids + target_ids
             labels += source_mask + target_ids
 
+        if template.efficient_eos:
+            input_ids += [tokenizer.eos_token_id]
+            labels += [tokenizer.eos_token_id]
+            
         model_inputs["input_ids"].append(input_ids)
         model_inputs["attention_mask"].append([1] * len(input_ids))
         model_inputs["labels"].append(labels)
@@ -264,7 +271,7 @@ def get_dataset_list(data_args: "CustomizedArguments") -> List["DatasetAttr"]:
 
     return dataset_list
 
-
+# @TODO 需要改进
 def load_single_dataset(
     dataset_attr: "DatasetAttr",
     data_args: "CustomizedArguments",
@@ -276,7 +283,8 @@ def load_single_dataset(
         local_path = os.path.join(data_args.dataset_dir, dataset_attr.dataset_name)
         if os.path.isdir(local_path):  # is directory
             for file_name in os.listdir(local_path):
-                data_files.append(os.path.join(local_path, file_name))
+                if FILEEXT2TYPE.get(file_name.split(".")[-1], None) != None:
+                    data_files.append(os.path.join(local_path, file_name))
                 if data_path is None:
                     data_path = FILEEXT2TYPE.get(file_name.split(".")[-1], None)
                 elif data_path != FILEEXT2TYPE.get(file_name.split(".")[-1], None):
@@ -357,6 +365,7 @@ def convert_alpaca(
         else:
             response = []
 
+        # The above code is using Python to output three hash symbols "
         outputs["prompt"].append(prompt)
         outputs["response"].append(response)
         outputs["system"].append(
@@ -476,6 +485,15 @@ def get_dataset(
 ) -> Union["Dataset", "IterableDataset"]:
     template = get_template_and_fix_tokenizer(tokenizer, args.template_name)
 
+    # Load tokenized dataset
+    if args.tokenized_path is not None:
+        if has_tokenized_data(args.tokenized_path):
+            logger.warning("Loading dataset from disk will ignore other data arguments.")
+            dataset = load_from_disk(args.tokenized_path)
+            logger.info("Loaded tokenized dataset from {}.".format(args.tokenized_path))
+
+            return dataset
+
     with training_args.main_process_first(desc="load dataset"):
         all_datasets = []
         for dataset_attr in get_dataset_list(data_args=args):
@@ -494,6 +512,16 @@ def get_dataset(
         )
         
         dataset = dataset.map(preprocess_func, batched=True, remove_columns=column_names, **kwargs)
+        logger.info(f"Total training number: {len(dataset)}")
+        
+        if args.task_type == "pt":
+            logger.info(
+                f"Total training tokens: {len(dataset) * args.max_seq_length // 1e9} B Tokens"
+            )
+        else:
+            logger.info(
+                f"Total training tokens: {len(dataset) * args.max_seq_length // 1e3} K Tokens"
+            )
         
         if args.tokenized_path is not None:
             if training_args.should_save:
@@ -510,3 +538,4 @@ def get_dataset(
                 raise RuntimeError("Cannot find valid samples, check `data/README.md` for the data format.")
 
         return dataset
+    
