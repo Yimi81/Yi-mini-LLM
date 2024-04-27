@@ -46,6 +46,7 @@ def preprocess_pretrain_dataset(
     total_length = len(concatenated_examples[list(concatenated_examples.keys())[0]])
     block_size = data_args.max_seq_length
     # we drop the small remainder, and if the total_length < block_size, we exclude this batch
+    # we could add padding if the model supported it instead of this drop, you can customize this part to your needs.
     total_length = (total_length // block_size) * block_size
     # split by chunks of max_seq_length
     result = {
@@ -88,7 +89,9 @@ def preprocess_supervised_dataset(
             )
         ):
             if turn_idx != 0 and template.efficient_eos:
-                source_mask = [tokenizer.eos_token_id] + [IGNORE_INDEX] * (len(source_ids) - 1)
+                source_mask = [tokenizer.eos_token_id] + [IGNORE_INDEX] * (
+                    len(source_ids) - 1
+                )
             else:
                 source_mask = [IGNORE_INDEX] * len(source_ids)
 
@@ -100,7 +103,7 @@ def preprocess_supervised_dataset(
         if template.efficient_eos:
             input_ids += [tokenizer.eos_token_id]
             labels += [tokenizer.eos_token_id]
-            
+
         model_inputs["input_ids"].append(input_ids)
         model_inputs["attention_mask"].append([1] * len(input_ids))
         model_inputs["labels"].append(labels)
@@ -144,13 +147,13 @@ def get_preprocess_and_print_func(
     template: "Template",
     args: "CustomizedArguments",
 ) -> Callable:
-    if args.task_type == "pt":
+    if args.task_type == "pretrain":
         preprocess_func = partial(
             preprocess_pretrain_dataset,
             tokenizer=tokenizer,
             data_args=args,
         )
-        print_function = partial(print_supervised_dataset_example, tokenizer=tokenizer)
+        print_function = partial(print_unsupervised_dataset_example, tokenizer=tokenizer)
     elif args.task_type == "sft":
         preprocess_func = partial(
             preprocess_supervised_dataset,
@@ -270,6 +273,7 @@ def get_dataset_list(data_args: "CustomizedArguments") -> List["DatasetAttr"]:
         dataset_list.append(dataset_attr)
 
     return dataset_list
+
 
 # @TODO 需要改进
 def load_single_dataset(
@@ -484,11 +488,13 @@ def get_dataset(
     training_args: "TrainingArguments",
 ) -> Union["Dataset", "IterableDataset"]:
     template = get_template_and_fix_tokenizer(tokenizer, args.template_name)
-
+    logger.info(f"tokenizer eos token: {tokenizer.eos_token}, eos_token_id: {tokenizer.eos_token_id}")
     # Load tokenized dataset
     if args.tokenized_path is not None:
         if has_tokenized_data(args.tokenized_path):
-            logger.warning("Loading dataset from disk will ignore other data arguments.")
+            logger.warning(
+                "Loading dataset from disk will ignore other data arguments."
+            )
             dataset = load_from_disk(args.tokenized_path)
             logger.info("Loaded tokenized dataset from {}.".format(args.tokenized_path))
 
@@ -510,11 +516,13 @@ def get_dataset(
             load_from_cache_file=(not args.overwrite_cache),
             desc="Running tokenizer on dataset",
         )
-        
-        dataset = dataset.map(preprocess_func, batched=True, remove_columns=column_names, **kwargs)
+
+        dataset = dataset.map(
+            preprocess_func, batched=True, remove_columns=column_names, **kwargs
+        )
         logger.info(f"Total training number: {len(dataset)}")
-        
-        if args.task_type == "pt":
+
+        if args.task_type == "pretrain":
             logger.info(
                 f"Total training tokens: {len(dataset) * args.max_seq_length // 1e9} B Tokens"
             )
@@ -522,12 +530,18 @@ def get_dataset(
             logger.info(
                 f"Total training tokens: {len(dataset) * args.max_seq_length // 1e3} K Tokens"
             )
-        
+
         if args.tokenized_path is not None:
             if training_args.should_save:
                 dataset.save_to_disk(args.tokenized_path)
-                logger.info("Tokenized dataset saved at {}.".format(args.tokenized_path))
-                logger.info("Please restart the training with `--tokenized_path {}`.".format(args.tokenized_path))
+                logger.info(
+                    "Tokenized dataset saved at {}.".format(args.tokenized_path)
+                )
+                logger.info(
+                    "Please restart the training with `--tokenized_path {}`.".format(
+                        args.tokenized_path
+                    )
+                )
 
             exit(0)
 
@@ -535,7 +549,8 @@ def get_dataset(
             try:
                 print_function(next(iter(dataset)))
             except StopIteration:
-                raise RuntimeError("Cannot find valid samples, check `data/README.md` for the data format.")
+                raise RuntimeError(
+                    "Cannot find valid samples, check `data/README.md` for the data format."
+                )
 
         return dataset
-    

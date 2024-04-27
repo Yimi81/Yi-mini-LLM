@@ -11,7 +11,7 @@ class CustomizedArguments:
 
     model_name_or_path: str = field(metadata={"help": "预训练权重路径"})
     max_seq_length: int = field(default=512, metadata={"help": "输入最大长度"})
-    template_name: str = field(default="yi", metadata={"help": "sft时的数据格式"})
+    template_name: str = field(default=None, metadata={"help": "sft时的数据格式"})
     dataset: Optional[str] = field(
         default=None,
         metadata={

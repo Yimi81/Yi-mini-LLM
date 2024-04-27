@@ -1,14 +1,16 @@
 {
-    "output_dir": "output/yi-1.1b-pretrain-v1",
+    "output_dir": "output/yi-1.1b-pretrain-v2",
     "model_name_or_path": "./model",
-    "train_file": "./data/pretrain",
+    "dataset": "skypile",
+    "dataset_dir": "./data",
+
     "deepspeed": "./scripts/ds_config_zero2.json",
     "num_train_epochs": 1,
     "preprocessing_num_workers": 10,
     "per_device_train_batch_size": 4,
     "gradient_accumulation_steps": 8,
     "learning_rate": 5e-4,
-    "max_seq_length": 4096,
+    "max_seq_length": 1024,
     "task_type": "pretrain",
     "train_mode": "full",
 

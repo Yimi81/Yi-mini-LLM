@@ -347,6 +347,21 @@ def get_template_and_fix_tokenizer(
 
 
 _register_template(
+    name="default",
+    format_user=StringFormatter(slots=["Human: {{content}}\nAssistant: "]),
+    format_system=StringFormatter(slots=["{{content}}\n"]),
+    format_separator=EmptyFormatter(slots=["\n"]),
+)
+
+
+_register_template(
+    name="empty",
+    format_user=StringFormatter(slots=["{{content}}"]),
+    format_assistant=StringFormatter(slots=["{{content}}"]),
+)
+
+
+_register_template(
     name="yi",
     format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n<|im_start|>assistant\n"]),
     format_system=StringFormatter(slots=["<|im_start|>system\n{{content}}<|im_end|>\n"]),

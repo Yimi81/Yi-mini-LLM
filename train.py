@@ -41,7 +41,7 @@ def setup_everything():
     if not os.path.exists(training_args.output_dir):
         os.makedirs(training_args.output_dir)
     logger.add(os.path.join(training_args.output_dir, "train.log"))
-    logger.info("train_args:{}".format(training_args))
+    logger.info("Training arguments have been saved to:{}".format(os.path.join(training_args.output_dir, "train.log")))
     # 加载训练配置文件
     with open(train_args_file, "r") as f:
         train_args = json.load(f)
