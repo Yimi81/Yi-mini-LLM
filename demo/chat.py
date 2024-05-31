@@ -21,9 +21,9 @@ def main():
     # template_name = 'qwen'
     #  adapter_name_or_path = None
 
-    model_name_or_path = "/ML-A100/public/tmp/yiguofeng/contribute/Yi-mini-LLM/output/yi-1.1b-pretrain-v1/checkpoint-30000"
+    model_name_or_path = "/ML-A100/public/tmp/yiguofeng/contribute/Yi-mini-LLM/output/yi-1.1b-pretrain-v1/checkpoint-50000"
     template_name = "yi"
-    adapter_name_or_path = "/ML-A100/public/tmp/yiguofeng/contribute/Yi-mini-LLM/output/yi-1.1b-ck30000-sft/checkpoint-50000"
+    adapter_name_or_path = "/ML-A100/public/tmp/yiguofeng/contribute/Yi-mini-LLM/output/yi-1.1b-ck50000-sft-v2"
 
     # 是否使用4bit进行推理，能够节省很多显存，但效果可能会有一定的下降
     load_in_4bit = False
@@ -50,7 +50,7 @@ def main():
     )
     tokenizer.padding_side = "left"
     
-    template = get_template_and_fix_tokenizer(tokenizer, "yi")
+    template = get_template_and_fix_tokenizer(tokenizer, "default")
     
     history = []
 
@@ -68,11 +68,12 @@ def main():
         
         prompt_length = len(prompt_ids)
         input_ids = torch.tensor([prompt_ids], device=model.device)
-
+        
+        print(f"input_ids: {input_ids}")
         decode_input = tokenizer.decode(
             input_ids[0]
         )
-        print(decode_input)
+        print(f"decode_input: {decode_input}")
         output_ids = model.generate(
             input_ids=input_ids,
             max_new_tokens=max_new_tokens,

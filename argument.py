@@ -78,3 +78,6 @@ class CustomizedArguments:
     lora_dropout: Optional[float] = field(
         default=0.0, metadata={"help": "Dropout rate for the LoRA fine-tuning."}
     )
+
+    use_best_fit_pack: bool = field(default=False)
+    

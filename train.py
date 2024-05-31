@@ -15,20 +15,16 @@ from transformers import (
 from model.configuration_llama import LlamaConfig
 from model.modeling_llama import LlamaForCausalLM
 
-import datasets
 import torch.nn as nn
-from datasets import load_dataset, concatenate_datasets
-from tqdm import tqdm
 from preprocess import get_dataset, IGNORE_INDEX
 from argument import CustomizedArguments
 from peft import LoraConfig, get_peft_model, TaskType
-from template import get_template_and_fix_tokenizer
 
 
 def setup_everything():
     parser = ArgumentParser()
     parser.add_argument(
-        "--train_args_file", type=str, default="hparams/train_args.json"
+        "--train_args_file", type=str, default="hparams/debug.json"
     )
     parser.add_argument("--local_rank", type=int, help="")
     args = parser.parse_args()
@@ -40,8 +36,8 @@ def setup_everything():
     # 创建输出目录
     if not os.path.exists(training_args.output_dir):
         os.makedirs(training_args.output_dir)
-    logger.add(os.path.join(training_args.output_dir, "train.log"))
-    logger.info("Training arguments have been saved to:{}".format(os.path.join(training_args.output_dir, "train.log")))
+        logger.add(os.path.join(training_args.output_dir, "train.log"))
+        logger.info("Training arguments have been saved to:{}".format(os.path.join(training_args.output_dir, "train.log")))
     # 加载训练配置文件
     with open(train_args_file, "r") as f:
         train_args = json.load(f)

@@ -29,14 +29,57 @@ FILEEXT2TYPE = {
 }
 
 
+def best_fit_decreasing(strings, max_seq_len):
+    # Step 1: Sort strings by length in decreasing order
+    strings.sort(key=len, reverse=True)
+    
+    # Step 2: Prepare to store the result
+    result = []
+    used = [False] * len(strings)
+    
+    # Step 3: Try to fit smaller strings into the space remaining in larger strings
+    for i in range(len(strings)):
+        if not used[i]:
+            # Current string as the base
+            current = strings[i]
+            used[i] = True
+            # Try to append other strings to it
+            for j in range(i + 1, len(strings)):
+                if not used[j] and len(current) + len(strings[j]) <= max_seq_len:
+                    current += strings[j]
+                    used[j] = True
+            # Append the combined string to the result list
+            result.append(current)
+    
+    return result
+
 def preprocess_pretrain_dataset(
     examples: Dict[str, List[Any]],
     tokenizer: "PreTrainedTokenizer",
     data_args: "CustomizedArguments",
 ) -> Dict[str, List[List[int]]]:
-    # build grouped texts with format `X1 X2 X3 ...` if packing is enabled
+    # if data_args.use_best_fit_pack:
+    #     text_examples = [
+    #         messages[0]["content"] + tokenizer.eos_token
+    #         for messages in examples["prompt"]
+    #     ]
+    #     block_size = data_args.max_seq_length
+    #     split_texts = [
+    #         text[i : i + block_size]
+    #         for text in text_examples
+    #         for i in range(0, len(text), block_size)
+    #     ]
+    #     best_fit_pack = best_fit_decreasing(split_texts, block_size)
+
+    #     for idx, value in enumerate(best_fit_pack):
+    #         result = {idx : value}
+        
+    #     return result
+    # else:  # concatenation
+        # build grouped texts with format `X1 X2 X3 ...` if packing is enabled
     text_examples = [
-        messages[0]["content"] + tokenizer.eos_token for messages in examples["prompt"]
+        messages[0]["content"] + tokenizer.eos_token
+        for messages in examples["prompt"]
     ]
 
     tokenized_examples = tokenizer(text_examples, add_special_tokens=False)
@@ -50,8 +93,7 @@ def preprocess_pretrain_dataset(
     total_length = (total_length // block_size) * block_size
     # split by chunks of max_seq_length
     result = {
-        k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-        for k, t in concatenated_examples.items()
+        k: [t[i : i + block_size] for i in range(0, total_length, block_size)] for k, t in concatenated_examples.items()
     }
 
     return result
@@ -153,7 +195,9 @@ def get_preprocess_and_print_func(
             tokenizer=tokenizer,
             data_args=args,
         )
-        print_function = partial(print_unsupervised_dataset_example, tokenizer=tokenizer)
+        print_function = partial(
+            print_unsupervised_dataset_example, tokenizer=tokenizer
+        )
     elif args.task_type == "sft":
         preprocess_func = partial(
             preprocess_supervised_dataset,
@@ -313,15 +357,19 @@ def load_single_dataset(
     else:
         kwargs = {}
 
-    dataset = load_dataset(
-        path=data_path,
-        name=data_name,
-        data_dir=data_dir,
-        data_files=data_files,
-        split=data_args.split,
-        cache_dir=data_args.cache_dir,
-        **kwargs,
-    )
+    try:
+        dataset = load_dataset(
+            path=data_path,
+            name=data_name,
+            data_dir=data_dir,
+            data_files=data_files,
+            split=data_args.split,
+            cache_dir=data_args.cache_dir,
+            **kwargs,
+        )
+    except Exception as e:
+        raise ValueError("Error load dataset {}.".format(e))
+
 
     if data_args.max_samples is not None:  # truncate dataset
         num_samples = min(data_args.max_samples, len(dataset))
@@ -488,7 +536,9 @@ def get_dataset(
     training_args: "TrainingArguments",
 ) -> Union["Dataset", "IterableDataset"]:
     template = get_template_and_fix_tokenizer(tokenizer, args.template_name)
-    logger.info(f"tokenizer eos token: {tokenizer.eos_token}, eos_token_id: {tokenizer.eos_token_id}")
+    logger.info(
+        f"tokenizer eos token: {tokenizer.eos_token}, eos_token_id: {tokenizer.eos_token_id}"
+    )
     # Load tokenized dataset
     if args.tokenized_path is not None:
         if has_tokenized_data(args.tokenized_path):
